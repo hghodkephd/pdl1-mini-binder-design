@@ -1,0 +1,25 @@
+# Large model files — never commit these
+*.pth
+*.pt
+*.ckpt
+*.pkl
+
+# Data files that can be re-downloaded
+data/structures/*.pdb
+data/structures/*.cif
+
+# Colab checkpoints
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# OS
+.DS_Store
+
+# Large outputs — track selectively
+# Uncomment if outputs get too large for git:
+# data/results/rfdiffusion_outputs/
+# data/results/proteinmpnn_outputs/
