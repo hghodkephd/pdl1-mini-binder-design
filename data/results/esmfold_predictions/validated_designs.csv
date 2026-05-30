@@ -1,5 +1,0 @@
-seq_id,backbone,mean_plddt,mpnn_score,global_score,rmsd,n_aligned,predicted_pdb,designed_pdb
-design_7_0_rank3,design_7_0,96.69,0.8931,1.3808,0.88,70,/content/drive/Othercomputers/My Mac/pdl1-mini-binder-design/data/results/esmfold_predictions/design_7_0_rank3.pdb,/content/drive/MyDrive/Colab Notebooks/rfdiffusion_outputs/design_7_0.pdb
-design_6_0_rank4,design_6_0,93.39,0.9113,1.3849,0.97,70,/content/drive/Othercomputers/My Mac/pdl1-mini-binder-design/data/results/esmfold_predictions/design_6_0_rank4.pdb,/content/drive/MyDrive/Colab Notebooks/rfdiffusion_outputs/design_6_0.pdb
-design_23_0_rank8,design_23_0,95.62,0.9519,1.4143,0.9,70,/content/drive/Othercomputers/My Mac/pdl1-mini-binder-design/data/results/esmfold_predictions/design_23_0_rank8.pdb,/content/drive/MyDrive/Colab Notebooks/rfdiffusion_outputs/design_23_0.pdb
-design_1_0_rank9,design_1_0,95.09,0.9583,1.4177,0.44,70,/content/drive/Othercomputers/My Mac/pdl1-mini-binder-design/data/results/esmfold_predictions/design_1_0_rank9.pdb,/content/drive/MyDrive/Colab Notebooks/rfdiffusion_outputs/design_1_0.pdb

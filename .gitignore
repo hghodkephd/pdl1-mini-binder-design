@@ -23,3 +23,65 @@ __pycache__/
 # Uncomment if outputs get too large for git:
 # data/results/rfdiffusion_outputs/
 # data/results/proteinmpnn_outputs/
+
+# temporary files
+.tmp.driveupload/
+.DS_Store
+.ipynb_checkpoints/
+
+# generated results
+data/results/
+data/intermediate/
+data/cache/
+
+# large structure/model outputs
+*.pt
+*.pth
+*.ckpt
+*.npz
+*.npy
+
+# optional: large trajectory / simulation files
+*.xtc
+*.trr
+*.dcd
+*.nc
+*.h5
+# Google Drive temp uploads
+
+.tmp.driveupload/
+
+# Generated results
+
+data/results/
+
+data/intermediate/
+
+data/cache/
+
+# Notebook checkpoints
+
+.ipynb_checkpoints/
+
+**/.ipynb_checkpoints/
+
+# Large model/data artifacts
+
+*.pt
+
+*.pth
+
+*.ckpt
+
+*.npz
+
+*.npy
+
+*.xtc
+
+*.trr
+
+*.dcd
+
+*.h5
+
