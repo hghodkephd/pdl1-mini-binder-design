@@ -1,87 +1,67 @@
-# Large model files — never commit these
-*.pth
-*.pt
-*.ckpt
-*.pkl
+# ------------------------------------------------------------
+# Local data/results
+# Keep the data folder on your Mac, but do not track its contents in Git.
+# Only data/README.md is tracked.
+# ------------------------------------------------------------
+data/*
+!data/README.md
 
-# Data files that can be re-downloaded
-data/structures/*.pdb
-data/structures/*.cif
+# ------------------------------------------------------------
+# Portfolio support outputs
+# Keep curated portfolio outputs tracked unless they become too large.
+# If needed later, selectively ignore large files inside portfolio_pages/.
+# ------------------------------------------------------------
 
-# Colab checkpoints
+# ------------------------------------------------------------
+# Notebook checkpoints
+# ------------------------------------------------------------
 .ipynb_checkpoints/
+**/.ipynb_checkpoints/
 
+# ------------------------------------------------------------
+# Google Drive temporary folders
+# ------------------------------------------------------------
+.tmp.drivedownload/
+.tmp.driveupload/
+
+# ------------------------------------------------------------
+# macOS / system files
+# ------------------------------------------------------------
+.DS_Store
+
+# ------------------------------------------------------------
 # Python
+# ------------------------------------------------------------
 __pycache__/
 *.pyc
 .env
 
-# OS
-.DS_Store
-
-# Large outputs — track selectively
-# Uncomment if outputs get too large for git:
-# data/results/rfdiffusion_outputs/
-# data/results/proteinmpnn_outputs/
-
-# temporary files
-.tmp.driveupload/
-.DS_Store
-.ipynb_checkpoints/
-
-# generated results
-data/results/
-data/intermediate/
-data/cache/
-
-# large structure/model outputs
+# ------------------------------------------------------------
+# Large model/cache files
+# ------------------------------------------------------------
 *.pt
 *.pth
 *.ckpt
+*.pkl
+*.safetensors
+.cache/
+models/
+weights/
+model_cache/
+
+# ------------------------------------------------------------
+# Large numerical arrays / generated artifacts
+# ------------------------------------------------------------
 *.npz
 *.npy
 
-# optional: large trajectory / simulation files
+# ------------------------------------------------------------
+# Molecular dynamics / trajectory files
+# ------------------------------------------------------------
 *.xtc
 *.trr
 *.dcd
 *.nc
 *.h5
-# Google Drive temp uploads
-
-.tmp.driveupload/
-
-# Generated results
-
-data/results/
-
-data/intermediate/
-
-data/cache/
-
-# Notebook checkpoints
-
-.ipynb_checkpoints/
-
-**/.ipynb_checkpoints/
-
-# Large model/data artifacts
-
-*.pt
-
-*.pth
-
-*.ckpt
-
-*.npz
-
-*.npy
-
-*.xtc
-
-*.trr
-
-*.dcd
-
-*.h5
-
+*.chk
+*.cpt
