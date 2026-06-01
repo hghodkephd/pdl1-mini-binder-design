@@ -49,7 +49,7 @@ Experimental validation would require gene synthesis, protein expression, purifi
 
 ---
 
-## Workflow Overview
+## Scientific Workflow Overview
 
 ```text
 PD-L1 target structure
@@ -75,15 +75,68 @@ Portfolio-ready figures, structures, and summaries
 
 ---
 
+## Working Model: What Lives Where
+
+This project uses three working locations, each with a distinct purpose.
+
+```text
+GitHub repository
+= code, notebooks, scripts, documentation, and small curated portfolio-support outputs
+
+Local Mac project folder
+= the working copy of the GitHub repo, plus local ignored data in data/
+
+Google Colab / Google Drive
+= temporary compute and staging, not the permanent source of truth
+```
+
+### GitHub
+
+GitHub tracks the project brain:
+
+- README and documentation
+- notebooks
+- reusable scripts
+- configuration files, if added
+- small curated outputs needed to support portfolio pages
+- `data/README.md`, which explains how the local data folder is used
+
+GitHub should **not** be used for bulk generated data, model weights, MD trajectories, large ESMFold/RFdiffusion outputs, or temporary Colab artifacts.
+
+### Local Mac folder
+
+The local working folder is:
+
+```text
+~/AIML/pdl1-mini-binder-design/
+```
+
+This is the main project workspace. It contains both Git-tracked project files and the local `data/` folder.
+
+The `data/` folder stays inside the project directory for convenience, but its contents are ignored by Git. This allows notebooks and scripts to use simple relative paths while preventing large generated files from being committed.
+
+### Colab and Google Drive
+
+Google Colab is treated as a disposable compute environment.
+
+The intended workflow is:
+
+```text
+GitHub/Mac repo → clone or pull in Colab → run compute → save outputs temporarily to Drive → bring selected outputs back to the Mac repo
+```
+
+Google Drive is useful as temporary staging for Colab runs. It is not treated as the permanent archive for this project.
+
+---
+
 ## Repository Structure
 
 ```text
 pdl1-mini-binder-design/
 ├── README.md
+├── .gitignore
 ├── data/
-│   ├── structures/
-│   ├── sequences/
-│   └── results/
+│   └── README.md
 ├── notebooks/
 │   ├── 01_target_preparation.ipynb
 │   ├── 02_rfdiffusion_binder_generation_clean.ipynb
@@ -103,25 +156,35 @@ pdl1-mini-binder-design/
 
 ### `data/`
 
-Contains project inputs, intermediate outputs, and analysis results.
+The `data/` directory is kept inside the project folder for local use, but its contents are ignored by Git.
 
-Typical contents include:
+Use `data/` for:
+
+- downloaded structures
+- local inputs
+- RFdiffusion outputs
+- ProteinMPNN outputs
+- ESMFold predictions
+- intermediate CSVs
+- logs
+- molecular dynamics files
+- scratch outputs
+
+Only `data/README.md` is tracked.
+
+This setup keeps paths simple while preventing large project outputs from entering GitHub.
+
+Example local layout:
 
 ```text
 data/
 ├── structures/
-│   ├── pdb4zq.ent
-│   ├── pdl1_clean.pdb
-│   └── pdl1_interface_session.pse
 ├── sequences/
-└── results/
-    ├── proteinmpnn/
-    └── ...
+├── results/
+├── intermediate/
+├── cache/
+└── scratch/
 ```
-
-Large generated outputs should be handled carefully. Raw model outputs, large trajectory files, and model weights should generally not be committed unless they are small, curated, and necessary for reproducibility or portfolio presentation.
-
----
 
 ### `notebooks/`
 
@@ -146,8 +209,6 @@ Current workflow notebooks:
 
 Some workflows are intended for Google Colab, especially GPU-dependent steps. Local notebooks are mainly used for organization, analysis, and portfolio preparation.
 
----
-
 ### `scripts/`
 
 Contains reusable scripts extracted from notebook workflows.
@@ -156,8 +217,6 @@ Example:
 
 - `portfolio_page3_extract_passed_structures_for_viewer.py`  
   Extracts selected structures for downstream visualization in the portfolio project.
-
----
 
 ### `portfolio_pages/`
 
@@ -172,7 +231,61 @@ This folder may include:
 - viewer-ready files
 - exported analysis artifacts
 
-The live HTML pages are maintained separately in the `hg-portfolio` repository. This folder exists to preserve the computational outputs that feed those pages.
+The live HTML pages are maintained separately in the `hg-portfolio` repository. This folder preserves the computational outputs that feed those pages.
+
+---
+
+## Code / Data Operating Workflow
+
+### Editing code and notebooks
+
+Use the local Mac repo as the main editing environment:
+
+```text
+~/AIML/pdl1-mini-binder-design/
+```
+
+Typical workflow:
+
+```bash
+cd ~/AIML/pdl1-mini-binder-design
+git status
+git add -A
+git commit -m "Describe the change"
+git push
+```
+
+### Running compute in Colab
+
+Colab should pull code from GitHub rather than acting as the source of truth.
+
+Typical Colab pattern:
+
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+```
+
+```bash
+!git clone https://github.com/hghodkephd/pdl1-mini-binder-design.git /content/pdl1-mini-binder-design
+%cd /content/pdl1-mini-binder-design
+```
+
+Large outputs produced in Colab should be saved temporarily to Google Drive, then copied back to the local Mac project folder if they need to be preserved.
+
+### Bringing outputs back into Git
+
+Only curated, small outputs should be copied into tracked folders such as `portfolio_pages/`.
+
+Do not commit bulk raw outputs unless there is a specific reason.
+
+A useful rule:
+
+```text
+Can I explain why this exact file belongs in GitHub?
+    yes → keep it tracked
+    no  → leave it in data/ or another ignored local output location
+```
 
 ---
 
@@ -218,8 +331,6 @@ Primary filters:
 
 Passing these filters indicates fold recapitulation, not target binding.
 
----
-
 ### ProteinMPNN entropy analysis
 
 ProteinMPNN sequence sampling can identify positions where the model is highly confident versus positions where multiple amino acids appear tolerated.
@@ -231,13 +342,9 @@ This can inform experimental library design:
 
 The goal is to compress library size while enriching for sequences that are more likely to fold and remain compatible with the designed scaffold.
 
----
-
 ### Parameter sensitivity
 
 The project also explores how RFdiffusion settings affect output quality. The practical goal is to understand how to tune design parameters to get more useful candidates from limited compute.
-
----
 
 ### Interaction fingerprinting and MD-style analysis
 
@@ -272,6 +379,16 @@ https://github.com/hghodkephd/hg-portfolio
 
 The portfolio pages translate selected results from this repo into accessible explanations for a broader technical audience.
 
+The intended separation is:
+
+```text
+pdl1-mini-binder-design/
+= computational workflow, notebooks, scripts, and curated support outputs
+
+hg-portfolio/
+= public-facing HTML pages served by GitHub Pages
+```
+
 ---
 
 ## Reproducibility Notes
@@ -281,7 +398,8 @@ Some workflows depend on Google Colab GPU availability and external model reposi
 Recommended practice:
 
 - keep code, notebooks, configs, and curated small outputs in GitHub
-- keep large intermediate files, model caches, and trajectories outside Git
+- keep local data and generated results in `data/`, which is ignored by Git
+- use Google Drive only as temporary Colab staging
 - clear notebook outputs before committing when possible
 - use `portfolio_pages/` only for curated assets needed to support public presentation
 
