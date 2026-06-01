@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parameter Sensitivity — PD-L1 Mini Binder Design</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#faf9f6;--bg2:#f0eeea;--bg3:#e6e3dc;
+--tx:#1a1a18;--tx2:#5a5850;--tx3:#8a8878;
+--accent:#1d6b52;--accent2:#0f4a38;--accent-light:#e1f0ea;
+--coral:#c85a3a;--coral-light:#faeae4;
+--blue:#2e6da4;--blue-light:#e6f0fa;
+--amber:#b07818;--amber-light:#faf0da;
+--purple:#6b4c9a;--purple-light:#ede6f5;
+--mono:"JetBrains Mono",monospace;
+--sans:"DM Sans",system-ui,sans-serif;
+--serif:"Source Serif 4",Georgia,serif;
+--radius:6px;--radius-lg:10px;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);line-height:1.7;-webkit-font-smoothing:antialiased}
+.page{max-width:920px;margin:0 auto;padding:2rem 1.5rem 4rem}
+
+/* Series banner */
+.series-banner{display:flex;align-items:center;gap:.75rem;margin-bottom:2rem;padding:.75rem 1rem;background:var(--accent-light);border-radius:var(--radius);border-left:3px solid var(--accent);flex-wrap:wrap}
+.series-banner .tag{font-family:var(--mono);font-size:.7rem;font-weight:500;color:var(--accent2);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+.series-banner a{font-size:.85rem;color:var(--accent2);font-weight:500;text-decoration:none;border-bottom:1px dashed var(--accent)}
+.series-banner .sep{color:var(--accent);opacity:.4}
+
+h1{font-family:var(--serif);font-weight:600;font-size:2rem;letter-spacing:-.02em;margin-bottom:.25rem}
+h2{font-family:var(--serif);font-weight:600;font-size:1.35rem;letter-spacing:-.01em;margin:3rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--bg3)}
+h3{font-family:var(--sans);font-weight:600;font-size:1rem;margin:1.5rem 0 .5rem;color:var(--tx)}
+p{margin-bottom:1rem;color:var(--tx2);font-size:.938rem}
+
+.subtitle{font-size:1.05rem;color:var(--tx3);font-family:var(--serif);font-style:italic;margin-bottom:2rem}
+
+/* Key stats row */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin:1.5rem 0 2rem}
+.stat-card{background:#fff;border:1px solid var(--bg3);border-radius:var(--radius);padding:1rem;text-align:center}
+.stat-card .num{font-family:var(--mono);font-size:1.6rem;font-weight:500;color:var(--accent2);line-height:1.2}
+.stat-card .label{font-size:.75rem;color:var(--tx3);margin-top:.25rem;text-transform:uppercase;letter-spacing:.06em}
+@media(max-width:600px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+
+/* Condition table */
+.param-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0 1.5rem}
+.param-table th{background:var(--bg2);padding:.5rem .75rem;text-align:left;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);border-bottom:2px solid var(--bg3)}
+.param-table td{padding:.5rem .75rem;border-bottom:1px solid var(--bg3)}
+.param-table tr:hover{background:var(--bg2)}
+.param-table .num{font-family:var(--mono);font-size:.8rem}
+.badge{display:inline-block;padding:.15rem .5rem;border-radius:99px;font-size:.7rem;font-weight:500;font-family:var(--mono)}
+.badge-pass{background:var(--accent-light);color:var(--accent2)}
+.badge-fail{background:var(--coral-light);color:var(--coral)}
+.badge-clusterA{background:var(--blue-light);color:var(--blue)}
+.badge-clusterB{background:var(--coral-light);color:var(--coral)}
+.badge-distributed{background:var(--amber-light);color:var(--amber)}
+
+/* Charts */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin:1.5rem 0}
+.chart-card{background:#fff;border:1px solid var(--bg3);border-radius:var(--radius-lg);padding:1.25rem}
+.chart-card h3{margin:0 0 .75rem;font-size:.9rem}
+.chart-card canvas{width:100%!important;max-height:280px}
+.chart-card.full{grid-column:1/-1}
+@media(max-width:700px){.chart-grid{grid-template-columns:1fr}}
+
+/* Heatmap */
+.heatmap{width:100%;border-collapse:collapse;font-size:.78rem;margin:1rem 0}
+.heatmap th{padding:.4rem .6rem;font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);background:var(--bg2)}
+.heatmap td{padding:.4rem .6rem;text-align:center;font-family:var(--mono);font-size:.8rem;border:2px solid var(--bg)}
+.heatmap td.empty{background:var(--bg2);color:var(--tx3);font-style:italic;font-family:var(--sans);font-size:.7rem}
+
+/* Findings cards */
+.finding{margin:1rem 0;padding:1rem 1.25rem;border-radius:var(--radius);border-left:3px solid var(--accent)}
+.finding.coral{border-left-color:var(--coral);background:var(--coral-light)}
+.finding.blue{border-left-color:var(--blue);background:var(--blue-light)}
+.finding.green{border-left-color:var(--accent);background:var(--accent-light)}
+.finding.amber{border-left-color:var(--amber);background:var(--amber-light)}
+.finding strong{color:var(--tx)}
+.finding p{margin-bottom:0;font-size:.88rem}
+
+/* Top candidates */
+.top-table{width:100%;border-collapse:collapse;font-size:.8rem;margin:1rem 0 1.5rem}
+.top-table th{background:var(--accent2);color:#fff;padding:.6rem .75rem;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em}
+.top-table td{padding:.5rem .75rem;border-bottom:1px solid var(--bg3);font-family:var(--mono);font-size:.78rem}
+.top-table tr:nth-child(even){background:var(--bg2)}
+.top-table tr:first-child td{background:var(--accent-light)}
+.rank-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:.7rem;font-weight:600}
+
+code{font-family:var(--mono);font-size:.82em;background:var(--bg2);padding:.15em .4em;border-radius:3px}
+
+/* Callout */
+.callout{background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin:1.5rem 0}
+.callout p{margin-bottom:.5rem}
+.callout p:last-child{margin-bottom:0}
+
+/* Recap box */
+.recap{background:var(--blue-light);border:1px solid rgba(46,109,164,.2);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin:1.5rem 0}
+.recap p{margin-bottom:.5rem;font-size:.9rem}
+.recap p:last-child{margin-bottom:0}
+.recap a{color:var(--blue);font-weight:500;text-decoration:none;border-bottom:1px solid var(--blue)}
+
+/* Tabs */
+.tab-row{display:flex;gap:.25rem;margin-bottom:1rem;border-bottom:2px solid var(--bg3)}
+.tab-btn{padding:.5rem 1rem;font-family:var(--sans);font-size:.82rem;font-weight:500;background:none;border:none;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab-btn.active{color:var(--accent2);border-bottom-color:var(--accent)}
+.tab-btn:hover{color:var(--tx)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Sankey */
+.sankey-container{margin:1.5rem 0;overflow-x:auto}
+.sankey-container svg{display:block;margin:0 auto}
+
+/* References */
+.ref-section{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--bg3)}
+.ref-section h2{border-bottom:none;margin-bottom:.75rem}
+.ref-list{list-style:none;counter-reset:refcount}
+.ref-list li{counter-increment:refcount;padding:.4rem 0 .4rem 2.5rem;font-size:.8rem;color:var(--tx3);line-height:1.5;position:relative;border-bottom:1px solid var(--bg3)}
+.ref-list li::before{content:"["counter(refcount)"]";position:absolute;left:0;font-family:var(--mono);font-size:.72rem;color:var(--tx3)}
+.ref-list li a{color:var(--accent);word-break:break-all;text-decoration:none}
+.sup{font-size:.7em;vertical-align:super;color:var(--accent);font-family:var(--mono);cursor:help;text-decoration:none}
+
+/* Aside / educational note */
+.aside{background:var(--purple-light);border:1px solid rgba(107,76,154,.15);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin:1.5rem 0;font-size:.88rem}
+.aside .aside-label{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--purple);margin-bottom:.5rem;font-weight:500}
+.aside p{margin-bottom:.5rem;color:var(--tx2)}
+.aside p:last-child{margin-bottom:0}
+
+/* Footer */
+.page-footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--bg3);text-align:center;color:var(--tx3);font-size:.8rem}
+.page-footer a{color:var(--accent);text-decoration:none}
+
+/* Workflow strip */
+.workflow-strip{display:flex;align-items:center;justify-content:center;gap:0;margin:1.5rem 0;flex-wrap:wrap}
+.wf-step{background:#fff;border:1px solid var(--bg3);padding:.5rem 1rem;font-size:.78rem;font-weight:500;color:var(--tx2);text-align:center;position:relative}
+.wf-step:first-child{border-radius:var(--radius) 0 0 var(--radius)}
+.wf-step:last-child{border-radius:0 var(--radius) var(--radius) 0}
+.wf-step.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+.wf-arrow{width:0;height:0;border-top:12px solid transparent;border-bottom:12px solid transparent;border-left:10px solid var(--bg3);flex-shrink:0}
+.wf-step .wf-sub{display:block;font-size:.65rem;font-weight:400;opacity:.8;margin-top:.15rem}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- Series Banner -->
+<div class="series-banner">
+  <span class="tag">Setup & Parameter Sensitivity</span>
+  <span class="sep">|</span>
+  <span style="font-size:.85rem;color:var(--tx2)">The wet-lab scientist's guide to computational protein design</span>
+  <span class="sep">|</span>
+  <a href="https://hghodkephd.github.io/hg-portfolio/projects/pdl1-mini-binder/">← Part 1: De Novo Design</a>
+</div>
+
+<h1>Part 2: Parameter Sensitivity Study</h1>
+<p class="subtitle">Which RFdiffusion knobs actually matter — and what happens when you turn them?</p>
+
+<!-- Recap -->
+<div class="recap">
+  <p><strong>Previously, in Part 1:</strong> We built a complete de novo binder design pipeline — RFdiffusion → ProteinMPNN → ESMFold — targeting the PD-L1 immune checkpoint, and showed that the pipeline can produce structurally validated mini binder candidates from scratch. <a href="https://hghodkephd.github.io/hg-portfolio/projects/pdl1-mini-binder/">Read the full Part 1 writeup →</a></p>
+  <p>That first run answered the question <em>"can I get this to work?"</em> This post asks the harder question: <em>"now that it works, what do I need to pay attention to?"</em> The goal here is not to draw definitive conclusions — at 20 backbones per condition, we don't have the statistical power for that. Instead, it's to <strong>set up a framework</strong> for answering that question. In a production setting with more compute, this same framework at higher sample sizes should yield actionable guidance for computational design campaigns. This study consumed approximately <strong>20 GPU-hours</strong> on a T4 instance.</p>
+</div>
+
+<!-- Workflow reminder -->
+<h2>Quick reminder: the pipeline</h2>
+<p>The same five-step workflow from Part 1. RFdiffusion generates protein backbone conformations de novo, guided by hotspot residues on the target surface. Backbones that pass a geometry filter (no clashes, reasonable inter-chain distances) are passed to ProteinMPNN, which designs an amino acid sequence for each backbone. ESMFold then predicts the 3D structure of that sequence — independently, from scratch — and we compare how closely that prediction matches the original designed backbone.</p>
+
+<div class="workflow-strip">
+  <div class="wf-step active">RFdiffusion<span class="wf-sub">backbone generation</span></div>
+  <div class="wf-arrow"></div>
+  <div class="wf-step">Geometry filter<span class="wf-sub">clash + distance</span></div>
+  <div class="wf-arrow"></div>
+  <div class="wf-step">ProteinMPNN<span class="wf-sub">sequence design</span></div>
+  <div class="wf-arrow"></div>
+  <div class="wf-step">ESMFold<span class="wf-sub">structure prediction</span></div>
+  <div class="wf-arrow"></div>
+  <div class="wf-step">Validation<span class="wf-sub">pLDDT + RMSD</span></div>
+</div>
+
+<!-- Motivation -->
+<h2>Why a parameter study?</h2>
+<p>In Part 1, we used a single set of parameters — a 70-residue binder, a hydrophobic hotspot cluster, no added noise. It worked. But that single data point leaves fundamental questions unanswered: was that a lucky configuration, or a robust one? Would shorter binders be equally valid? Does the chemical character of the hotspot residues matter?</p>
+<p>There's a pragmatic question that anyone running a computational design campaign — whether they come from enzyme engineering, antibody discovery, or assay development — eventually has to face: <em>"How do I trust that the designs I am about to test are worth testing?"</em> Equivalently: <em>"Is my computational workflow reliable, or is it producing noisy designs?"</em> To answer these questions while assembling a toolkit of computational design tools, you have to know how good each tool is and when it should be used.</p>
+<p>This kind of instrument characterization is something experimentalists do reflexively — you run controls, you vary one thing at a time, you build intuition about the system's behavior. It's the same logic applied to a computational tool.</p>
+
+
+<!-- Experimental Design -->
+<h2>Experimental design</h2>
+
+<p>Three parameters were varied systematically:</p>
+
+<div class="callout">
+  <p><strong>Binder length</strong> (25, 50, 70, 100 residues) — Controls topological complexity. The RFdiffusion README notes that the default model tends to generate mostly helical binders.<a href="#ref2" class="sup">[2]</a> At what length do we start seeing topological diversity beyond helix-turn-helix?</p>
+  <p><strong>Hotspot configuration</strong> — RFdiffusion uses "hotspot residues" on the target surface to guide where the binder docks.<a href="#ref2" class="sup">[2]</a> We defined three configurations based on our PD-L1 interface analysis (PDB 4ZQK):</p>
+  <p style="margin-left:1rem"><strong>Cluster A</strong> (4 residues, N-terminal end): Ala18, Thr20, Gly120, Asp122 — small and hydrophobic/polar residues at one end of the interface.</p>
+  <p style="margin-left:1rem"><strong>Cluster B</strong> (5 residues, central/C-terminal): Asp26, Tyr56, Arg113, Tyr123, Arg125 — aromatic and charged residues that dominate PD-1 binding energetics.</p>
+  <p style="margin-left:1rem"><strong>Distributed</strong> (8 residues, spanning both): Ala18, Thr20, Asp26, Tyr56, Arg113, Gly120, Asp122, Arg125 — a sparser selection spanning both clusters.</p>
+  <p>The question is whether the <em>chemical character</em> of these residues — not just their count or spatial arrangement — affects design quality.</p>
+  <p><strong>Noise scale</strong> (0.0 vs 0.5) — Controls stochasticity in the diffusion process. Higher noise should produce more diverse but potentially lower-quality backbones.</p>
+</div>
+
+<h2>Overview of the Study and Results</h2>
+<p>The full factorial design would be 4 lengths × 3 hotspot configurations × 2 noise levels = 24 conditions. In practice, only 16 conditions produced geometry-passing backbones. The 8 missing conditions — mostly short binders (25-mers) with cluster B or distributed hotspots — yielded no designs that survived initial geometry filtering.</p>
+
+<!-- Key Stats -->
+<div class="stats-row">
+  <div class="stat-card"><div class="num">16</div><div class="label">Conditions tested</div></div>
+  <div class="stat-card"><div class="num">55</div><div class="label">Designs validated</div></div>
+  <div class="stat-card"><div class="num">31</div><div class="label">Pass final filter</div></div>
+  <div class="stat-card"><div class="num">56%</div><div class="label">Overall pass rate</div></div>
+</div>
+
+<div class="aside">
+  <div class="aside-label">What these numbers mean</div>
+  <p><strong>Conditions tested</strong> — Each condition is a unique combination of binder length, hotspot configuration, and noise scale. Each condition runs RFdiffusion once to produce 20 backbone conformations.</p>
+  <p><strong>Designs validated</strong> — The subset of RFdiffusion backbones that passed initial geometry filtering (no steric clashes, reasonable backbone distances) and were subsequently processed through ProteinMPNN sequence design and ESMFold structure prediction.</p>
+  <p><strong>Pass final filter</strong> — Designs that met both validation thresholds: pLDDT ≥ 80 (ESMFold is confident the sequence folds as intended) and RMSD ≤ 2.0 Å (the predicted structure closely matches the designed backbone).</p>
+  <p><strong>Pass rate</strong> — Designs passed ÷ designs validated. A measure of how efficiently a given condition converts raw backbones into structurally validated candidates.</p>
+</div>
+
+
+<!-- Sankey -->
+<h2>The filtering funnel</h2>
+<p>Before looking at individual parameters, it helps to see the overall attrition. Not every RFdiffusion backbone produces a viable candidate — the funnel narrows at each step. In this run, we observed the following:</p>
+
+<div class="sankey-container">
+<svg viewBox="0 0 780 320" xmlns="http://www.w3.org/2000/svg" style="max-width:780px;width:100%">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#2e6da4" stop-opacity=".35"/><stop offset="100%" stop-color="#1d6b52" stop-opacity=".35"/></linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1d6b52" stop-opacity=".35"/><stop offset="100%" stop-color="#1d6b52" stop-opacity=".5"/></linearGradient>
+    <linearGradient id="g3" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1d6b52" stop-opacity=".5"/><stop offset="100%" stop-color="#0f4a38" stop-opacity=".6"/></linearGradient>
+    <linearGradient id="gdrop" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#c85a3a" stop-opacity=".15"/><stop offset="100%" stop-color="#c85a3a" stop-opacity=".08"/></linearGradient>
+  </defs>
+  <text x="40" y="25" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="#1a1a18">480 Backbones</text>
+  <text x="40" y="40" font-family="DM Sans,sans-serif" font-size="9" fill="#8a8878">24 conditions × 20 each</text>
+  <text x="220" y="25" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="#1a1a18">320 Backbones</text>
+  <text x="220" y="40" font-family="DM Sans,sans-serif" font-size="9" fill="#8a8878">16 viable conditions</text>
+  <text x="410" y="25" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="#1a1a18">55 Designs</text>
+  <text x="410" y="40" font-family="DM Sans,sans-serif" font-size="9" fill="#8a8878">validated by ESMFold</text>
+  <text x="600" y="25" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="#0f4a38">31 Candidates</text>
+  <text x="600" y="40" font-family="DM Sans,sans-serif" font-size="9" fill="#8a8878">pass final filter</text>
+  <rect x="40" y="55" width="60" height="220" rx="4" fill="#2e6da4" opacity=".65"/>
+  <rect x="220" y="73" width="60" height="147" rx="4" fill="#1d6b52" opacity=".65"/>
+  <rect x="410" y="167" width="60" height="25" rx="4" fill="#1d6b52" opacity=".75"/>
+  <rect x="600" y="173" width="60" height="14" rx="4" fill="#0f4a38" opacity=".85"/>
+  <path d="M100,55 C160,55 160,73 220,73 L220,220 C160,220 160,275 100,275 Z" fill="url(#g1)"/>
+  <path d="M280,73 C340,73 340,167 410,167 L410,192 C340,192 340,220 280,220 Z" fill="url(#g2)"/>
+  <path d="M470,167 C530,167 530,173 600,173 L600,187 C530,187 530,192 470,192 Z" fill="url(#g3)"/>
+  <path d="M100,275 C150,278 160,282 180,288 L180,303 C160,300 150,296 100,275 Z" fill="url(#gdrop)"/>
+  <path d="M280,220 C320,225 340,230 360,240 L360,255 C340,248 320,242 280,220 Z" fill="url(#gdrop)"/>
+  <path d="M470,192 C510,196 530,200 550,208 L550,223 C530,218 510,214 470,192 Z" fill="url(#gdrop)"/>
+  <text x="120" y="298" font-family="JetBrains Mono,monospace" font-size="9" fill="#c85a3a">160 backbones</text>
+  <text x="120" y="310" font-family="DM Sans,sans-serif" font-size="8" fill="#c85a3a" opacity=".7">8 overconstrained conditions</text>
+  <text x="310" y="250" font-family="JetBrains Mono,monospace" font-size="9" fill="#c85a3a">265 backbones</text>
+  <text x="310" y="262" font-family="DM Sans,sans-serif" font-size="8" fill="#c85a3a" opacity=".7">geometry + sequence losses</text>
+  <text x="500" y="218" font-family="JetBrains Mono,monospace" font-size="9" fill="#c85a3a">24 designs</text>
+  <text x="500" y="230" font-family="DM Sans,sans-serif" font-size="8" fill="#c85a3a" opacity=".7">fail pLDDT or RMSD</text>
+  <text x="70" y="170" font-family="JetBrains Mono,monospace" font-size="15" fill="#fff" text-anchor="middle" font-weight="600">480</text>
+  <text x="250" y="152" font-family="JetBrains Mono,monospace" font-size="15" fill="#fff" text-anchor="middle" font-weight="600">320</text>
+  <text x="440" y="164" font-family="JetBrains Mono,monospace" font-size="11" fill="#fff" text-anchor="middle" font-weight="600">55</text>
+  <text x="630" y="170" font-family="JetBrains Mono,monospace" font-size="9" fill="#fff" text-anchor="middle" font-weight="600">31</text>
+</svg>
+</div>
+
+<p>This attrition — 480 backbones down to 31 validated candidates — is consistent with published pipelines. Bennett et al. found that structure-prediction-based filtering (using models like AlphaFold2 or ESMFold to check whether a designed sequence refolds correctly) increases experimental success rates nearly 10-fold compared to older physics-based scoring, but the computational pass rate still varies widely by target.<a href="#ref1" class="sup">[1]</a> The RFdiffusion paper itself generated ~10,000 backbones per target in production campaigns.<a href="#ref2" class="sup">[2]</a></p>
+
+<div class="aside">
+  <div class="aside-label">A note on sample sizes</div>
+  <p>This study uses 20 backbones per condition — far fewer than a production campaign. The Baker Lab recommends ~1,000–10,000 backbones per target.<a href="#ref2" class="sup">[2]</a> Our goal here is not to identify the optimal condition but to observe <em>directional trends</em>: which parameters appear to shift outcomes, and which seem forgiving. All observations below should be read as "in this run, we observed..." rather than definitive conclusions.</p>
+</div>
+
+
+
+
+<!-- Experimental Design -->
+<h2>Results at a glance</h2>
+<p>Whereas 24 conditions were tested in the full factorial design, in practice, only 16 conditions produced geometry-passing backbones. The 8 missing conditions — mostly short binders (25-mers) with cluster B or distributed hotspots — yielded no designs that survived initial geometry filtering.</p>
+<p>That's already a result: given these inputs, short binders with many spatially distributed hotspot constraints appear to be physically overconstrained. The model simply can't satisfy all the geometric requirements simultaneously within 25 residues. This is consistent with the intuition that hotspot residue selection should consider the spatial extent of the binding interface relative to the binder length.<a href="#ref3" class="sup">[3]</a></p>
+
+<table class="param-table">
+<thead><tr><th>Condition</th><th>Length</th><th>Hotspot</th><th>Noise</th><th>Designs</th><th>Pass</th><th>Rate</th></tr></thead>
+<tbody id="conditionTable"></tbody>
+</table>
+
+<!-- Results Charts -->
+<h2>Results by parameter</h2>
+<p>For each of the three parameters, we can ask: does varying this parameter shift the pass rate, pLDDT, or RMSD distributions in a consistent direction?</p>
+
+<div class="tab-row">
+  <button class="tab-btn active" onclick="showTab(this,'by-param')">By Parameter</button>
+  <button class="tab-btn" onclick="showTab(this,'scatter')">Quality Scatter</button>
+  <button class="tab-btn" onclick="showTab(this,'heatmap')">Condition Matrix</button>
+</div>
+
+<div id="tab-by-param" class="tab-panel active">
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Pass rate by binder length</h3>
+      <canvas id="chartLength"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Pass rate by hotspot configuration</h3>
+      <canvas id="chartHotspot"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Mean pLDDT — pass vs fail</h3>
+      <canvas id="chartPlddt"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Mean RMSD — pass vs fail</h3>
+      <canvas id="chartRmsd"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="tab-scatter" class="tab-panel">
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <h3>pLDDT vs RMSD — all 55 designs</h3>
+      <p style="font-size:.8rem;color:var(--tx3);margin:.25rem 0 .5rem">Each bubble is one design. <strong>Color</strong> indicates hotspot configuration (blue = Cluster A, red = Cluster B, amber = Distributed). <strong>Bubble size</strong> scales with binder length — the smallest bubbles are 25-mers, the largest are 100-mers. Faded bubbles failed one or both filters. Dashed lines show filter cutoffs (pLDDT ≥ 80, RMSD ≤ 2.0 Å). Designs in the <strong>top-left quadrant</strong> pass both filters.</p>
+      <canvas id="chartScatter" style="max-height:400px"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="tab-heatmap" class="tab-panel">
+  <p style="font-size:.88rem;margin-bottom:.75rem">Each cell shows <strong>pass / total</strong> designs for that condition. Grey cells indicate conditions where no backbones passed initial geometry filtering.</p>
+  <table class="heatmap" id="heatmapTable"></table>
+</div>
+
+<!-- Key Findings -->
+<h2>What we observed</h2>
+<p>Several directional trends emerged consistently enough to be informative:</p>
+
+<div class="finding green">
+  <p><strong>Cluster B produced the highest in silico pass rate in this run.</strong> The aromatic/charged peripheral hotspot patch yielded 7/8 passing designs (88%) across all lengths tested. This is consistent with the expectation that aromatic and charged residues create stronger, more geometrically specific binding constraints for RFdiffusion to optimize against. However, Cluster B also had fewer total designs reaching the validation stage, so this rate comes with low statistical power.</p>
+</div>
+<div class="finding blue">
+  <p><strong>70-mers appeared to be a productive length.</strong> At 70 residues, 14/22 designs (64%) passed final validation — the best pass rate among lengths with substantial sample sizes. 25-mers had 2/2 (100%) but only 2 designs survived geometry filtering at all. 100-mers dropped to 11/22 (50%). This is qualitatively consistent with the observation that longer backbones have more conformational degrees of freedom, making ESMFold recapitulation harder — a phenomenon noted across multiple binder design campaigns.<a href="#ref1" class="sup">[1]</a></p>
+</div>
+<div class="finding amber">
+  <p><strong>Moderate noise appeared to help, not hurt.</strong> At noise scale 0.5, 9/11 designs (82%) passed validation versus 22/44 (50%) at noise 0.0. We draw the tentative inference that stochasticity in the diffusion process may push the model toward more diverse and ultimately more designable backbone conformations. However, the sample sizes are unequal — noise 0.5 conditions produced fewer geometry-passing backbones in the first place, so only the "survivors" reach validation.</p>
+</div>
+<div class="finding coral">
+  <p><strong>The 8 missing conditions are informative in themselves.</strong> Most absent conditions are short binders (25-mers) paired with distributed or Cluster B hotspots. When the spatial extent of the hotspot set exceeds what the binder backbone can physically reach, the model produces geometrically invalid outputs. This is the computational equivalent of "the protein can't fold that way" — and it aligns with published guidance on matching hotspot selection to binder length.<a href="#ref3" class="sup">[3]</a></p>
+</div>
+
+<!-- Top Candidates -->
+<h2>Top candidates</h2>
+<p>Ranked by RMSD among designs passing both filters (pLDDT ≥ 80, RMSD ≤ 2.0 Å). The top candidate — a 70-mer from the Cluster A / noise 0.5 condition — achieved an RMSD of 0.24 Å, meaning ESMFold reproduced the designed backbone almost exactly.</p>
+
+<table class="top-table">
+<thead><tr><th>#</th><th>Condition</th><th>pLDDT</th><th>RMSD (Å)</th><th>MPNN</th><th>Rg (Å)</th><th>Contacts</th><th>Status</th></tr></thead>
+<tbody id="topTable"></tbody>
+</table>
+
+<div class="aside">
+  <div class="aside-label">Important caveat</div>
+  <p>None of the current computational metrics (pLDDT, RMSD, pAE, i_pTM) are predictive of <em>binding affinity</em>. They are useful as binary classifiers — "does this design fold as intended?" — but a high-scoring in silico design may still fail experimentally.<a href="#ref4" class="sup">[4]</a><a href="#ref5" class="sup">[5]</a></p>
+</div>
+
+<h2>Connecting to the broader landscape</h2>
+<p>It's worth placing these results in the context of the rapidly evolving binder design field. The RFdiffusion + ProteinMPNN pipeline we used here remains the most widely adopted approach,<a href="#ref6" class="sup">[6]</a> but newer tools like BindCraft — which uses AlphaFold2 backpropagation for iterative sequence–structure co-optimization — have reported substantially higher experimental success rates.<a href="#ref4" class="sup">[4]</a> RFdiffusion3, released in late 2025, extends the model to atom-level hotspot specification and all-atom generation.<a href="#ref7" class="sup">[7]</a> The fundamental workflow — generate, filter, validate — is shared across all of them. Understanding which parameters matter in the generation step is relevant regardless of which tool you use.</p>
+
+<!-- What's next -->
+<h2>What's next</h2>
+<p>The parameter study tells us which conditions produce structurally valid designs. The next page examines the designs themselves: their three-dimensional structures (viewable in an interactive 3D viewer), and how their predicted contacts compare to the native PD-1/PD-L1 interface through interaction fingerprinting.</p>
+<p><a href="https://hghodkephd.github.io/hg-portfolio/projects/pdl1-mini-binder/structure-viewer/" style="color:var(--accent);font-weight:600">→ Part 3: Structure & Interface Analysis</a></p>
+
+
+
+<!-- References -->
+<div class="ref-section">
+<h2>References</h2>
+<ol class="ref-list">
+  <li id="ref1">Bennett, N.R., Coventry, B., Goreshnik, I., et al. "Improving de novo protein binder design with deep learning." <em>Nature Communications</em> 14, 2625 (2023). <a href="https://doi.org/10.1038/s41467-023-38328-5">doi:10.1038/s41467-023-38328-5</a></li>
+  <li id="ref2">Watson, J.L., Juergens, D., Bennett, N.R., et al. "De novo design of protein structure and function with RFdiffusion." <em>Nature</em> 620, 1089–1100 (2023). <a href="https://doi.org/10.1038/s41586-023-06415-8">doi:10.1038/s41586-023-06415-8</a></li>
+  <li id="ref3">CycleDesigner — Li, M. et al. "Leveraging RFdiffusion and HighFold to Design Cyclic Peptide Binders for Specific Targets." <em>bioRxiv</em> (2024). <a href="https://doi.org/10.1101/2024.11.27.625581">doi:10.1101/2024.11.27.625581</a></li>
+  <li id="ref4">Pacesa, M. et al. "BindCraft: one-shot design of functional protein binders." <em>bioRxiv</em> (2024). <a href="https://doi.org/10.1101/2024.09.30.615802">doi:10.1101/2024.09.30.615802</a></li>
+  <li id="ref5">Dauparas, J. et al. "Robust deep learning–based protein sequence design using ProteinMPNN." <em>Science</em> 378, 49–56 (2022). <a href="https://doi.org/10.1126/science.add2187">doi:10.1126/science.add2187</a></li>
+  <li id="ref6">Adaptyv Bio. "Protein Optimization 102: Lessons from the protein design competition." (2024). <a href="https://www.adaptyvbio.com/blog/po102/">adaptyvbio.com/blog/po102</a></li>
+  <li id="ref7">RFdiffusion3 — Baker Lab / RosettaCommons. <a href="https://github.com/RosettaCommons/RFdiffusion">github.com/RosettaCommons/RFdiffusion</a></li>
+</ol>
+</div>
+
+<div class="page-footer">
+  <p>Part 2 of <em>The wet-lab scientist's guide to computational protein design</em></p>
+  <p style="margin-top:.25rem">
+    <a href="https://hghodkephd.github.io/hg-portfolio/projects/pdl1-mini-binder/">← De Novo Design (Part 1)</a>
+    · <a href="https://hghodkephd.github.io/hg-portfolio/projects/pdl1-mini-binder/structure-viewer/">Structure & Interface Analysis →</a>
+  </p>
+  <p style="margin-top:.5rem"><a href="https://github.com/hghodkephd/pdl1-mini-binder-design">GitHub Repository</a></p>
+</div>
+
+</div><!-- .page -->
+
+<script>
+// ── DATA ──
+const ALL_DATA = [
+  {cid:"len25_clusterA_noise0",sid:"design_15_0_rank0",plddt:96.85,mpnn:1.0678,rmsd:0.56,n:25,rg:10.9,bc:3,tc:3},
+  {cid:"len25_clusterA_noise0",sid:"design_11_0_rank1",plddt:94.83,mpnn:1.3189,rmsd:0.41,n:25,rg:10.92,bc:6,tc:7},
+  {cid:"len50_clusterA_noise0",sid:"design_9_0_rank0",plddt:92.29,mpnn:0.9796,rmsd:1.01,n:50,rg:12.22,bc:5,tc:4},
+  {cid:"len50_clusterA_noise0",sid:"design_6_0_rank1",plddt:76.31,mpnn:1.0307,rmsd:0.83,n:50,rg:12.09,bc:5,tc:3},
+  {cid:"len50_clusterA_noise0",sid:"design_16_0_rank2",plddt:64.84,mpnn:1.0314,rmsd:10.86,n:50,rg:10.61,bc:4,tc:3},
+  {cid:"len50_clusterA_noise05",sid:"design_0_0_rank0",plddt:84.63,mpnn:1.2296,rmsd:1.24,n:50,rg:12.43,bc:3,tc:2},
+  {cid:"len50_clusterB_noise0",sid:"design_19_0_rank0",plddt:94.74,mpnn:1.0748,rmsd:0.7,n:50,rg:12.23,bc:4,tc:5},
+  {cid:"len50_distributed_noise0",sid:"design_4_0_rank0",plddt:95.67,mpnn:1.0023,rmsd:0.84,n:50,rg:11.69,bc:3,tc:4},
+  {cid:"len50_distributed_noise0",sid:"design_14_0_rank1",plddt:64.78,mpnn:1.0731,rmsd:8.5,n:50,rg:11.68,bc:4,tc:3},
+  {cid:"len50_distributed_noise0",sid:"design_18_0_rank2",plddt:85.76,mpnn:1.0875,rmsd:7.71,n:50,rg:12.04,bc:4,tc:4},
+  {cid:"len50_distributed_noise0",sid:"design_15_0_rank3",plddt:80.25,mpnn:1.1013,rmsd:4.34,n:50,rg:11.87,bc:6,tc:4},
+  {cid:"len70_clusterA_noise0",sid:"design_1_0_rank0",plddt:53.08,mpnn:0.6965,rmsd:1.25,n:70,rg:15.79,bc:4,tc:4},
+  {cid:"len70_clusterA_noise0",sid:"design_10_0_rank1",plddt:87.49,mpnn:0.8612,rmsd:1.46,n:70,rg:11.98,bc:5,tc:3},
+  {cid:"len70_clusterA_noise0",sid:"design_16_0_rank5",plddt:95.07,mpnn:0.947,rmsd:0.55,n:70,rg:15.91,bc:3,tc:2},
+  {cid:"len70_clusterA_noise0",sid:"design_3_0_rank7",plddt:96.5,mpnn:0.9934,rmsd:0.45,n:70,rg:11.73,bc:6,tc:4},
+  {cid:"len70_clusterA_noise0",sid:"design_11_0_rank2",plddt:75.85,mpnn:0.8684,rmsd:3.71,n:70,rg:15.85,bc:4,tc:4},
+  {cid:"len70_clusterA_noise0",sid:"design_19_0_rank10",plddt:87.48,mpnn:1.1253,rmsd:4.44,n:70,rg:15.68,bc:4,tc:3},
+  {cid:"len70_clusterA_noise0",sid:"design_13_0_rank8",plddt:73.68,mpnn:1.0136,rmsd:5.38,n:70,rg:15.88,bc:3,tc:2},
+  {cid:"len70_clusterA_noise0",sid:"design_14_0_rank4",plddt:85.8,mpnn:0.9476,rmsd:1.45,n:70,rg:15.34,bc:6,tc:5},
+  {cid:"len70_clusterA_noise0",sid:"design_7_0_rank3",plddt:87.45,mpnn:0.8702,rmsd:1.17,n:70,rg:11.52,bc:5,tc:3},
+  {cid:"len70_clusterA_noise0",sid:"design_18_0_rank9",plddt:90.79,mpnn:0.9782,rmsd:0.71,n:70,rg:15.72,bc:4,tc:3},
+  {cid:"len70_clusterA_noise0",sid:"design_0_0_rank6",plddt:91.8,mpnn:0.9261,rmsd:0.73,n:70,rg:12.0,bc:5,tc:3},
+  {cid:"len70_clusterA_noise05",sid:"design_19_0_rank0",plddt:94.56,mpnn:0.921,rmsd:0.24,n:70,rg:15.9,bc:3,tc:2},
+  {cid:"len70_clusterA_noise05",sid:"design_2_0_rank1",plddt:89.47,mpnn:1.0017,rmsd:0.93,n:70,rg:12.0,bc:5,tc:3},
+  {cid:"len70_clusterB_noise0",sid:"design_17_0_rank0",plddt:93.55,mpnn:1.1132,rmsd:0.47,n:70,rg:15.8,bc:3,tc:3},
+  {cid:"len70_clusterB_noise0",sid:"design_19_0_rank1",plddt:93.97,mpnn:1.165,rmsd:0.44,n:70,rg:16.04,bc:3,tc:3},
+  {cid:"len70_clusterB_noise0",sid:"design_15_0_rank2",plddt:87.67,mpnn:1.101,rmsd:0.97,n:70,rg:16.0,bc:3,tc:3},
+  {cid:"len70_clusterB_noise05",sid:"design_4_0_rank0",plddt:82.54,mpnn:1.088,rmsd:1.43,n:70,rg:15.28,bc:5,tc:4},
+  {cid:"len70_distributed_noise0",sid:"design_17_0_rank1",plddt:94.33,mpnn:1.0287,rmsd:0.33,n:70,rg:15.88,bc:3,tc:2},
+  {cid:"len70_distributed_noise0",sid:"design_5_0_rank2",plddt:94.18,mpnn:1.0568,rmsd:0.46,n:70,rg:15.62,bc:3,tc:2},
+  {cid:"len70_distributed_noise0",sid:"design_18_0_rank0",plddt:87.53,mpnn:1.0208,rmsd:4.4,n:70,rg:15.78,bc:6,tc:3},
+  {cid:"len70_distributed_noise0",sid:"design_16_0_rank3",plddt:82.08,mpnn:1.0614,rmsd:1.47,n:70,rg:16.0,bc:4,tc:3},
+  {cid:"len70_distributed_noise05",sid:"design_9_0_rank0",plddt:83.09,mpnn:1.0993,rmsd:2.4,n:70,rg:12.0,bc:4,tc:3},
+  {cid:"len100_clusterA_noise0",sid:"design_16_0_rank6",plddt:92.33,mpnn:0.9212,rmsd:0.52,n:100,rg:13.31,bc:4,tc:6},
+  {cid:"len100_clusterA_noise0",sid:"design_13_0_rank4",plddt:96.04,mpnn:0.8796,rmsd:0.57,n:100,rg:15.38,bc:3,tc:4},
+  {cid:"len100_clusterA_noise0",sid:"design_4_0_rank3",plddt:88.02,mpnn:0.8968,rmsd:0.65,n:100,rg:13.28,bc:4,tc:5},
+  {cid:"len100_clusterA_noise0",sid:"design_9_0_rank8",plddt:93.2,mpnn:1.0011,rmsd:0.8,n:100,rg:16.07,bc:3,tc:4},
+  {cid:"len100_clusterA_noise0",sid:"design_1_0_rank0",plddt:53.99,mpnn:0.7965,rmsd:14.16,n:100,rg:15.03,bc:5,tc:3},
+  {cid:"len100_clusterA_noise0",sid:"design_15_0_rank2",plddt:68.12,mpnn:0.8597,rmsd:14.34,n:100,rg:17.93,bc:3,tc:5},
+  {cid:"len100_clusterA_noise0",sid:"design_0_0_rank7",plddt:68.45,mpnn:0.9484,rmsd:16.05,n:100,rg:14.05,bc:4,tc:4},
+  {cid:"len100_clusterA_noise0",sid:"design_7_0_rank5",plddt:70.65,mpnn:0.8847,rmsd:4.57,n:100,rg:16.24,bc:4,tc:3},
+  {cid:"len100_clusterA_noise0",sid:"design_11_0_rank1",plddt:83.72,mpnn:0.8546,rmsd:0.67,n:100,rg:13.5,bc:3,tc:3},
+  {cid:"len100_clusterA_noise05",sid:"design_6_0_rank0",plddt:62.57,mpnn:0.8929,rmsd:10.93,n:100,rg:18.46,bc:3,tc:3},
+  {cid:"len100_clusterA_noise05",sid:"design_7_0_rank1",plddt:88.88,mpnn:0.9245,rmsd:23.73,n:100,rg:15.27,bc:3,tc:2},
+  {cid:"len100_clusterA_noise05",sid:"design_3_0_rank2",plddt:94.26,mpnn:0.944,rmsd:0.76,n:100,rg:13.09,bc:4,tc:7},
+  {cid:"len100_clusterA_noise05",sid:"design_14_0_rank3",plddt:94.01,mpnn:1.0563,rmsd:0.71,n:100,rg:16.26,bc:4,tc:3},
+  {cid:"len100_clusterB_noise0",sid:"design_1_0_rank0",plddt:68.21,mpnn:0.9596,rmsd:2.8,n:100,rg:18.34,bc:3,tc:3},
+  {cid:"len100_clusterB_noise05",sid:"design_13_0_rank0",plddt:86.85,mpnn:1.0386,rmsd:0.79,n:100,rg:17.41,bc:3,tc:2},
+  {cid:"len100_clusterB_noise05",sid:"design_0_0_rank1",plddt:92.43,mpnn:1.113,rmsd:0.61,n:100,rg:16.78,bc:3,tc:2},
+  {cid:"len100_distributed_noise0",sid:"design_5_0_rank0",plddt:92.08,mpnn:0.8254,rmsd:0.53,n:100,rg:12.95,bc:3,tc:3},
+  {cid:"len100_distributed_noise0",sid:"design_18_0_rank1",plddt:92.88,mpnn:0.87,rmsd:0.58,n:100,rg:13.11,bc:3,tc:3},
+  {cid:"len100_distributed_noise0",sid:"design_16_0_rank2",plddt:68.19,mpnn:0.9008,rmsd:2.68,n:100,rg:12.94,bc:4,tc:4},
+  {cid:"len100_distributed_noise0",sid:"design_3_0_rank3",plddt:85.61,mpnn:0.9076,rmsd:3.61,n:100,rg:15.66,bc:3,tc:2},
+  {cid:"len100_distributed_noise0",sid:"design_19_0_rank4",plddt:68.22,mpnn:0.9797,rmsd:1.88,n:100,rg:14.81,bc:4,tc:3},
+  {cid:"len100_distributed_noise0",sid:"design_15_0_rank5",plddt:90.52,mpnn:1.0186,rmsd:1.41,n:100,rg:19.21,bc:3,tc:2},
+];
+
+const RMSD_CUTOFF = 2.0;
+const PLDDT_CUTOFF = 80;
+function passFilter(d){ return d.rmsd <= RMSD_CUTOFF && d.plddt >= PLDDT_CUTOFF; }
+function parseCondition(cid){
+  const len = parseInt(cid.match(/len(\d+)/)[1]);
+  const hs = cid.match(/_(clusterA|clusterB|distributed)_/)[1];
+  const noise = cid.includes('noise05') ? '0.5' : '0.0';
+  return {len, hs, noise};
+}
+
+// ── CONDITION TABLE ──
+(function(){
+  const groups = {};
+  ALL_DATA.forEach(d => { if(!groups[d.cid]) groups[d.cid] = []; groups[d.cid].push(d); });
+  const tbody = document.getElementById('conditionTable');
+  Object.keys(groups).sort().forEach(cid => {
+    const {len, hs, noise} = parseCondition(cid);
+    const designs = groups[cid];
+    const pass = designs.filter(passFilter).length;
+    const rate = Math.round(pass/designs.length*100);
+    const bc = {clusterA:'badge-clusterA',clusterB:'badge-clusterB',distributed:'badge-distributed'}[hs];
+    tbody.innerHTML += `<tr><td><code>${cid}</code></td><td class="num">${len}</td><td><span class="badge ${bc}">${hs}</span></td><td class="num">${noise}</td><td class="num">${designs.length}</td><td class="num">${pass}</td><td class="num"><strong>${rate}%</strong></td></tr>`;
+  });
+})();
+
+// ── TABS ──
+function showTab(btn, id){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── CHART DEFAULTS ──
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#5a5850';
+const C = {accent:'#1d6b52',accentA:'rgba(29,107,82,0.7)',coral:'#c85a3a',coralA:'rgba(200,90,58,0.25)',blue:'#2e6da4',blueA:'rgba(46,109,164,0.7)',amber:'#b07818',amberA:'rgba(176,120,24,0.7)',purple:'#6b4c9a',purpleA:'rgba(107,76,154,0.7)'};
+
+// ── PASS RATE BY LENGTH ──
+(function(){
+  const lens=[25,50,70,100];
+  const tot=lens.map(l=>ALL_DATA.filter(d=>d.n===l).length);
+  const pas=lens.map(l=>ALL_DATA.filter(d=>d.n===l&&passFilter(d)).length);
+  const rates=lens.map((_,i)=>tot[i]?Math.round(pas[i]/tot[i]*100):0);
+  new Chart(document.getElementById('chartLength'),{type:'bar',data:{labels:lens.map(l=>l+'-mer'),datasets:[{label:'Pass rate %',data:rates,backgroundColor:[C.amberA,C.blueA,C.accentA,C.purpleA],borderColor:[C.amber,C.blue,C.accent,C.purple],borderWidth:1.5,borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:(_,{dataIndex:i})=>`${pas[i]}/${tot[i]} designs`}}},scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}}}});
+})();
+
+// ── PASS RATE BY HOTSPOT ──
+(function(){
+  const hss=['clusterA','clusterB','distributed'];
+  const labels=['Cluster A\n(hydrophobic)','Cluster B\n(aromatic/charged)','Distributed'];
+  const tot=hss.map(h=>ALL_DATA.filter(d=>parseCondition(d.cid).hs===h).length);
+  const pas=hss.map(h=>ALL_DATA.filter(d=>parseCondition(d.cid).hs===h&&passFilter(d)).length);
+  const rates=hss.map((_,i)=>tot[i]?Math.round(pas[i]/tot[i]*100):0);
+  new Chart(document.getElementById('chartHotspot'),{type:'bar',data:{labels,datasets:[{label:'Pass rate %',data:rates,backgroundColor:[C.blueA,C.coralA.replace('0.25','0.7'),C.amberA],borderColor:[C.blue,C.coral,C.amber],borderWidth:1.5,borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:(_,{dataIndex:i})=>`${pas[i]}/${tot[i]} designs`}}},scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}}}});
+})();
+
+// ── MEAN PLDDT ──
+(function(){
+  const lens=[25,50,70,100];
+  const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;
+  const pA=lens.map(l=>avg(ALL_DATA.filter(d=>d.n===l&&passFilter(d)).map(d=>d.plddt)));
+  const fA=lens.map(l=>avg(ALL_DATA.filter(d=>d.n===l&&!passFilter(d)).map(d=>d.plddt)));
+  new Chart(document.getElementById('chartPlddt'),{type:'bar',data:{labels:lens.map(l=>l+'-mer'),datasets:[{label:'Pass',data:pA.map(v=>+v.toFixed(1)),backgroundColor:C.accentA,borderColor:C.accent,borderWidth:1.5,borderRadius:4},{label:'Fail',data:fA.map(v=>+v.toFixed(1)),backgroundColor:C.coralA,borderColor:C.coral,borderWidth:1.5,borderRadius:4}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:8}}},scales:{y:{beginAtZero:false,min:50,max:100}}}});
+})();
+
+// ── MEAN RMSD ──
+(function(){
+  const hss=['clusterA','clusterB','distributed'];
+  const labels=['Cluster A','Cluster B','Distributed'];
+  const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;
+  const pA=hss.map(h=>avg(ALL_DATA.filter(d=>parseCondition(d.cid).hs===h&&passFilter(d)).map(d=>d.rmsd)));
+  const fA=hss.map(h=>avg(ALL_DATA.filter(d=>parseCondition(d.cid).hs===h&&!passFilter(d)).map(d=>d.rmsd)));
+  new Chart(document.getElementById('chartRmsd'),{type:'bar',data:{labels,datasets:[{label:'Pass',data:pA.map(v=>+v.toFixed(2)),backgroundColor:C.accentA,borderColor:C.accent,borderWidth:1.5,borderRadius:4},{label:'Fail',data:fA.map(v=>+v.toFixed(2)),backgroundColor:C.coralA,borderColor:C.coral,borderWidth:1.5,borderRadius:4}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:8}}},scales:{y:{beginAtZero:true}}}});
+})();
+
+// ── SCATTER ──
+(function(){
+  const hsC={clusterA:C.blue,clusterB:C.coral,distributed:C.amber};
+  const datasets=['clusterA','clusterB','distributed'].map(hs=>({
+    label:hs==='clusterA'?'Cluster A':hs==='clusterB'?'Cluster B':'Distributed',
+    data:ALL_DATA.filter(d=>parseCondition(d.cid).hs===hs).map(d=>({x:d.rmsd,y:d.plddt,r:Math.sqrt(d.n)*1.1,sid:d.sid,cid:d.cid,pass:passFilter(d)})),
+    backgroundColor:ALL_DATA.filter(d=>parseCondition(d.cid).hs===hs).map(d=>passFilter(d)?hsC[hs]+'cc':hsC[hs]+'33'),
+    borderColor:ALL_DATA.filter(d=>parseCondition(d.cid).hs===hs).map(d=>passFilter(d)?hsC[hs]:hsC[hs]+'66'),
+    borderWidth:1.5,
+  }));
+
+  // Inline plugin: draws dashed threshold lines directly on the canvas
+  const thresholdLines = {
+    id:'thresholdLines',
+    afterDraw(chart){
+      const {ctx, chartArea:{left,right,top,bottom}, scales:{x,y}} = chart;
+      ctx.save();
+      ctx.setLineDash([6,4]);
+      ctx.strokeStyle='rgba(200,90,58,0.55)';
+      ctx.lineWidth=1.5;
+
+      // Vertical line: RMSD = 2.0
+      const xPx = x.getPixelForValue(RMSD_CUTOFF);
+      if(xPx >= left && xPx <= right){
+        ctx.beginPath(); ctx.moveTo(xPx,top); ctx.lineTo(xPx,bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle='rgba(200,90,58,0.75)';
+        ctx.font='600 10px DM Sans,sans-serif';
+        ctx.fillText('RMSD 2.0 Å', xPx+4, top+12);
+      }
+
+      // Horizontal line: pLDDT = 80
+      const yPx = y.getPixelForValue(PLDDT_CUTOFF);
+      if(yPx >= top && yPx <= bottom){
+        ctx.setLineDash([6,4]);
+        ctx.strokeStyle='rgba(200,90,58,0.55)';
+        ctx.beginPath(); ctx.moveTo(left,yPx); ctx.lineTo(right,yPx); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle='rgba(200,90,58,0.75)';
+        ctx.font='600 10px DM Sans,sans-serif';
+        ctx.fillText('pLDDT 80', left+4, yPx-4);
+      }
+
+      // Shade the passing quadrant (top-left)
+      const xCut = Math.min(x.getPixelForValue(RMSD_CUTOFF), right);
+      const yCut = Math.max(y.getPixelForValue(PLDDT_CUTOFF), top);
+      ctx.fillStyle='rgba(29,107,82,0.04)';
+      ctx.fillRect(left, top, xCut-left, yCut-top);
+
+      ctx.restore();
+    }
+  };
+
+  new Chart(document.getElementById('chartScatter'),{
+    type:'bubble',
+    data:{datasets},
+    plugins:[thresholdLines],
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{position:'bottom',labels:{boxWidth:12,padding:12}},
+        tooltip:{callbacks:{label:ctx=>{const p=ctx.raw;return `${p.cid} | pLDDT=${p.y.toFixed(1)} RMSD=${p.x.toFixed(2)}Å | ${p.pass?'PASS':'FAIL'}`;}}},
+      },
+      scales:{
+        x:{title:{display:true,text:'RMSD (Å)'},min:0,max:26},
+        y:{title:{display:true,text:'Mean pLDDT'},min:45,max:100}
+      }
+    }
+  });
+})();
+
+// ── HEATMAP ──
+(function(){
+  const lens=[25,50,70,100], hss=['clusterA','clusterB','distributed'], noises=['0.0','0.5'];
+  const t=document.getElementById('heatmapTable');
+  let h='<thead><tr><th></th>';
+  hss.forEach(hs=>noises.forEach(n=>{h+=`<th>${hs==='clusterA'?'Cluster A':hs==='clusterB'?'Cluster B':'Distributed'}<br><span style="font-weight:400;font-size:.65rem">noise ${n}</span></th>`;}));
+  h+='</tr></thead><tbody>';
+  t.innerHTML=h;
+  lens.forEach(l=>{
+    let row=`<tr><th style="text-align:right">${l}-mer</th>`;
+    hss.forEach(hs=>{noises.forEach(n=>{
+      const cid=`len${l}_${hs}_noise${n==='0.5'?'05':'0'}`;
+      const ds=ALL_DATA.filter(d=>d.cid===cid);
+      if(!ds.length){row+=`<td class="empty">no data</td>`;}
+      else{
+        const p=ds.filter(passFilter).length;
+        const rate=p/ds.length;
+        const bg=rate>0.7?'rgba(29,107,82,0.25)':rate>0.4?'rgba(29,107,82,0.12)':rate>0?'rgba(200,90,58,0.1)':'rgba(200,90,58,0.15)';
+        row+=`<td style="background:${bg};font-weight:${rate>=0.5?'600':'400'}">${p}/${ds.length}</td>`;
+      }
+    });});
+    row+='</tr>';
+    t.querySelector('tbody').innerHTML+=row;
+  });
+})();
+
+// ── TOP TABLE ──
+(function(){
+  const ranked=ALL_DATA.slice().sort((a,b)=>a.rmsd-b.rmsd).filter(passFilter).slice(0,15);
+  const tbody=document.getElementById('topTable');
+  ranked.forEach((d,i)=>{
+    tbody.innerHTML+=`<tr><td><span class="rank-num">${i+1}</span></td><td>${d.cid}</td><td>${d.plddt.toFixed(1)}</td><td>${d.rmsd.toFixed(2)}</td><td>${d.mpnn.toFixed(3)}</td><td>${d.rg.toFixed(1)}</td><td>${d.bc}b / ${d.tc}t</td><td><span class="badge badge-pass">pass</span></td></tr>`;
+  });
+})();
+</script>
+</body>
+</html>
